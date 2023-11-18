@@ -47,19 +47,19 @@ class SideMenu(UserControl):
     def nav_clicked(self, e):
         if e.control.selected_index == 0:            
             self.page.go("/")
-            self.route.bar.set_title('Configuração')
+            self.route.page.title='UniTime - Configuração'
             self.route.page.update()
             self.update()
             return
         elif e.control.selected_index == 1:
             self.page.go("/editar")
-            self.route.bar.set_title('Editar preferências')
+            self.route.page.title='UniTime - Calcular'
             self.route.page.update()
             self.update()
             return
         elif e.control.selected_index == 2:            
             self.page.go("/horarios")
-            self.route.bar.set_title('Horários')
+            self.route.page.title='UniTime - Horários'
             self.route.page.update()
             self.update()
             return
