@@ -1,19 +1,31 @@
 from ConfirmDialog import ConfirmDialog
 from flet import *
-import json
+from Database import Database
 
 class Configuracao(UserControl):
     def __init__(self, route):
         super().__init__()
         self.route = route
+        self.database = Database()
+
+        #FUNÇÕES
+
+        def slider_changed(e):
+            self.route.page.client_storage.set("temp_aulas_semana", e.control.value)
+            self.slider_text.value = f"Número de aulas na semana: {int(e.control.value * 5)}"
+            self.update()
 
         #CONTROLES
 
+        self.slider_text = Text("Número de aulas na semana: ", expand=1, visible=True)
+
+        self.aulas_dia_slider = Slider(expand=2, min=2, max=10, divisions=8, value=2, label="{value}", on_change=slider_changed)
+
         self.btn_save_teachers = OutlinedButton(text='Salvar', icon=icons.SAVE_OUTLINED, on_click=self.save_clicked)
 
-        self.btn_novo_professor = IconButton(icon=icons.ADD_OUTLINED, tooltip="Novo Professor(a)", icon_color="primary", icon_size=36, on_click=self.new_professor_clicked)
+        self.btn_novo_professor = IconButton(expand=1, icon=icons.ADD_OUTLINED, tooltip="Novo Professor(a)", icon_color="primary", icon_size=36, on_click=self.new_professor_clicked)
 
-        self.btn_delete = IconButton(icon=icons.DELETE_OUTLINED, tooltip="Deletar Professores",icon_color='red', on_click=self.delete_clicked)
+        self.btn_delete = IconButton(expand=1, icon=icons.DELETE_OUTLINED, tooltip="Deletar Professores",icon_color='red', on_click=self.delete_clicked)
     
         self.dt_professores = DataTable(     
             width=1000,                                       
@@ -28,22 +40,7 @@ class Configuracao(UserControl):
                 DataColumn(Text('Disciplina')), 
                 DataColumn(Text('Número de aulas'), numeric=True),
             ],
-            rows=[
-                DataRow(on_select_changed=lambda e: self.checked_row(e), selected=False,
-                    cells=[
-                        DataCell(TextField(hint_text="Escreva o nome do professor(a)", value="Professor")),
-                        DataCell(TextField(hint_text="Escreva o nome da disciplina", value="Disciplina")),
-                        DataCell(TextField(hint_text="Escreva o número de aulas",value="1")),
-                    ],
-                ),
-                DataRow(on_select_changed=lambda e: self.checked_row(e), selected=False,
-                    cells=[
-                        DataCell(TextField(hint_text="Escreva o nome do professor(a)", value="Professor")),
-                        DataCell(TextField(hint_text="Escreva o nome da disciplina", value="Disciplina")),
-                        DataCell(TextField(hint_text="Escreva o número de aulas",value="1")),
-                    ],
-                ),
-            ],
+            rows=[],
         )
 
         self.listview_professores = ListView(
@@ -55,8 +52,6 @@ class Configuracao(UserControl):
         #DATA
 
         self.checked_list = []
-
-        #CARDS
     
     #FUNÇÕES
         
@@ -82,28 +77,31 @@ class Configuracao(UserControl):
     def build(self):
         self.config_content = Container(
             expand=True,
-            margin=35,
+            margin=10,
             content=Column(    
                 expand=False,
-                spacing=40,
+                spacing=5,
                 alignment="start",
                 controls=[
-                    Row(expand=2,
-                        spacing=20,
+                    Row(expand=1,
+                        spacing=5,
                         alignment="center",
                         controls=[
+                            Text("Número de aulas por dia:", style=TextThemeStyle.TITLE_MEDIUM),
+                            self.aulas_dia_slider,
+                            self.slider_text,
                             self.btn_novo_professor,
                             self.btn_delete,]),
                     Row(
                         expand=4,
-                        spacing=20,
+                        spacing=5,
                         alignment="center",
                         controls=[
                             self.listview_professores
                         ],
                     ),
-                    Row(expand=2,
-                        spacing=20,
+                    Row(expand=1,
+                        spacing=5,
                         alignment="center",
                         controls=[
                             self.btn_save_teachers,
@@ -115,7 +113,7 @@ class Configuracao(UserControl):
 
         self.content = Row(
             expand=True,
-            spacing=10,
+            spacing=5,
             controls=[                
                 self.config_content,             
             ]
@@ -155,31 +153,37 @@ class Configuracao(UserControl):
         self.dt_professores.update()
 
     def save_clicked(self, e):
-        rows_data = [
-        [cell.content.value for cell in row.cells] for row in self.dt_professores.rows
-        ]
+        # Conectar ao banco de dados SQLite (cria o arquivo do banco se não existir)
+        self.database.iniciar()
 
-        # Cria um dicionário para armazenar os dados
-        data = {
-            "rows": rows_data
-        }
+        # Inserir dados na tabela
+        self.database.delete_all_professores()
+        for row in self.dt_professores.rows:
+            nome_professor = row.cells[0].content.value
+            disciplina = row.cells[1].content.value
+            num_aulas = int(row.cells[2].content.value)
 
-        # Converte a estrutura serializável para uma string JSON
-        json_data = json.dumps(data, indent=2)
-        self.route.page.client_storage.set("temp_data", json_data)
+            self.database.inserir_professores(nome_professor,disciplina,num_aulas)
+
+        self.database.disconnect()
+        self.route.page.update()
+        self.dt_professores.update()
 
     def load_professores(self):
-        if self.route.page.client_storage.contains_key("temp_data"):
-            json_data = self.route.page.client_storage.get("temp_data")
-            data = json.loads(json_data)
-            rows = []
-            for row_data in data.get("rows", []):
-                cells_data = [
-                            DataCell(TextField(value=str(JSONvalue))) for JSONvalue in row_data
-                ]
-                rows.append(DataRow(on_select_changed=lambda e: self.checked_row(e), selected=False,
-                    cells=cells_data
-                ))
+        self.database.iniciar()
+        professores = self.database.get_all_professores()
 
-            self.dt_professores.rows.clear()
-            self.dt_professores.rows.append(rows)
+        self.dt_professores.rows.clear()
+        for professor in professores:
+            row = DataRow(on_select_changed=lambda e: self.checked_row(e), selected=False,
+                cells=[
+                    DataCell(TextField(value=professor[1], hint_text="Escreva o nome do professor(a)")),  # NomeProfessor
+                    DataCell(TextField(value=professor[2], hint_text="Escreva o nome da disciplina")),  # Disciplina
+                    DataCell(TextField(value=str(professor[3]), hint_text="Escreva o número de aulas")),  # NumAulas
+                ],
+            )
+            self.dt_professores.rows.append(row)
+
+        self.database.disconnect()
+
+        self.dt_professores.update()

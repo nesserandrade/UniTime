@@ -5,56 +5,70 @@ class EditarPreferencias(UserControl):
         super().__init__()
         self.route = route
 
-        def slider_changed(e):
-            self.slider_text.value = f"Slider changed to {e.control.value}"
+        #CONTROLES
 
-        #CONTROLS
-
-        #TEXT
-        self.slider_text = Text()
-
-        self.professores_slider = Slider(min=0, max=100, divisions=10, label="{value}%", on_change=slider_changed)
-
-        #CARDS
-        self.slider_card = Card(
-            expand=5,
-            surface_tint_color=colors.SURFACE_VARIANT,
-            elevation=10.0,
-            content = Container(
-                padding=20,
-                ink=True,
-                content=Column(
-                    spacing=15,
-                    horizontal_alignment='center',
-                    alignment='center',
-                    controls=[
-                        Text("Slider with 'on_change' event:", style=TextThemeStyle.TITLE_MEDIUM),
-                        self.professores_slider,
-                    ]
-                )
-            )
+        self.btn_calc = OutlinedButton(text='Calcular', icon=icons.CALCULATE_OUTLINED, on_click=self.calc_clicked)
+    
+        self.dt_horarios = DataTable(     
+            width=1000,                                       
+            expand=True,
+            divider_thickness=0,
+            sort_ascending=True,
+            show_checkbox_column=True,
+            checkbox_horizontal_margin=0,
+            heading_row_height=100,
+            columns=[
+                DataColumn(Text('Horários')), 
+                DataColumn(Text('Segunda-feira')),
+                DataColumn(Text('Terça-feira')), 
+                DataColumn(Text('Quarta-feira')), 
+                DataColumn(Text('Quinta-feira')), 
+                DataColumn(Text('Sexta-feira')), 
+            ],
         )
 
-    def initialize(self):
-        print("Initializing Home Page")
+        self.listview_horarios = ListView(
+                                    expand=True,
+                                    controls=[
+                                            self.dt_horarios,
+                                             ]
+                                    )
+        #DATA
 
+        #CARDS
+    
+    #FUNÇÕES
+
+    def initialize(self):
         self.route.menu.nnrail.selected_index = 1
         self.route.menu.update()
+        self.update()
+        self.route.page.update()
+        self.load_horarios()
 
     def build(self):
         self.config_content = Container(
             expand=True,
             margin=35,
             content=Column(    
-                expand=True,
-                spacing=40,                                                            
+                expand=False,
+                spacing=40,
+                alignment="start",
                 controls=[
                     Row(
                         expand=4,
-                        spacing=40,
+                        spacing=20,
+                        alignment="center",
                         controls=[
-                            self.slider_card,
+                            self.listview_professores
                         ],
+                    ),
+                    Row(expand=2,
+                        spacing=20,
+                        alignment="center",
+                        controls=[
+                            self.btn_calc,
+                        ]
                     ),
                 ]
             )
@@ -67,4 +81,10 @@ class EditarPreferencias(UserControl):
                 self.config_content,             
             ]
         )
-        return self.content    
+        return self.content
+
+    def calc_clicked(self, e):
+        raise NotImplementedError
+
+    def load_horarios(self):
+        raise NotImplementedError
